@@ -52,6 +52,9 @@ const HELP_MD = `# Telegram 编码机器人
 - Atbash: 仅字母(A-Z, a-z)。中文/Emoji/控制字符保持不变(原样输出)
 - 摩斯密码: 仅字母和数字。中文/Emoji/控制字符保持不变(原样输出)
 
+### 字体转换
+- Wingdings: 仅字母和数字。中文/Emoji/控制字符保持不变(原样输出)
+
 ## 使用示例
 
 中文 "你好":
@@ -69,6 +72,9 @@ Emoji "😀":
 - Hex: 48 65 6C 6C 6F
 - Base64: SGVsbG8=
 
+Wingdings "Hello":
+- Wingdings: ✈☺☻♠♣
+
 ## 解码说明
 
 部分编码不支持直接解码：
@@ -84,7 +90,7 @@ Emoji "😀":
 - 长结果(>3900字符)会自动转为TXT文件发送
 - 编码不是加密，请勿用于密码、Token、私钥等敏感信息
 - 无状态运行，不保存任何数据
-- 部分编码(ASCII、ROT13、ROT47、Atbash、摩斯密码)有字符集限制
+- 部分编码(ASCII、ROT13、ROT47、Atbash、摩斯密码、Wingdings)有字符集限制
 - 不支持控制字符 (如 \\x00, \\x01 等)
 
 ## 命令
@@ -348,12 +354,36 @@ const ascii = (t) => {
     return Array.from(t).map(ch => ch.charCodeAt(0)).join(" ");
 };
 
+// ===== Wingdings =====
+const WINGDINGS_MAP = {
+    'A': '✈', 'B': '☺', 'C': '☻', 'D': '♠', 'E': '♣', 'F': '♥', 'G': '♦',
+    'H': '✉', 'I': '✌', 'J': '☎', 'K': '✆', 'L': '✇', 'M': '✈', 'N': '✉',
+    'O': '☯', 'P': '✐', 'Q': '✑', 'R': '✒', 'S': '✓', 'T': '✔', 'U': '✕',
+    'V': '✖', 'W': '✗', 'X': '✘', 'Y': '✙', 'Z': '✚',
+    'a': '✈', 'b': '☺', 'c': '☻', 'd': '♠', 'e': '♣', 'f': '♥', 'g': '♦',
+    'h': '✉', 'i': '✌', 'j': '☎', 'k': '✆', 'l': '✇', 'm': '✈', 'n': '✉',
+    'o': '☯', 'p': '✐', 'q': '✑', 'r': '✒', 's': '✓', 't': '✔', 'u': '✕',
+    'v': '✖', 'w': '✗', 'x': '✘', 'y': '✙', 'z': '✚',
+    '0': '⓪', '1': '①', '2': '②', '3': '③', '4': '④',
+    '5': '⑤', '6': '⑥', '7': '⑦', '8': '⑧', '9': '⑨',
+    ' ': ' ', '.': '•', ',': '‚', '!': '❗', '?': '❓'
+};
+const WINGDINGS_REVERSE = Object.fromEntries(Object.entries(WINGDINGS_MAP).map(([k,v]) => [v,k]));
+
+function wingdingsEncode(text) {
+    return Array.from(text).map(ch => WINGDINGS_MAP[ch] || ch).join('');
+}
+function wingdingsDecode(text) {
+    return Array.from(text).map(ch => WINGDINGS_REVERSE[ch] || ch).join('');
+}
+
 const NAMES = {
     hex: "Hex十六进制", decimal: "十进制", octal: "八进制", binary: "二进制", ascii: "ASCII", unicode: "Unicode码点",
     utf8: "UTF-8", utf16: "UTF-16", utf32: "UTF-32",
     base16: "Base16", base32: "Base32", base58: "Base58", base62: "Base62", base64: "Base64", base64url: "Base64URL", base85: "Base85",
     url: "URL编码", html: "HTML实体", unicode_escape: "Unicode转义", json: "JSON转义",
-    rot13: "ROT13", rot47: "ROT47", atbash: "Atbash", morse: "摩斯密码"
+    rot13: "ROT13", rot47: "ROT47", atbash: "Atbash", morse: "摩斯密码",
+    wingdings: "Wingdings"
 };
 
 // ===== 编解码 =====
@@ -384,6 +414,7 @@ function encode(type, text) {
         case "rot47": return rot47(text);
         case "atbash": return atbash(text);
         case "morse": return morse(text);
+        case "wingdings": return wingdingsEncode(text);
         default: throw new Error("未知编码方式");
     }
 }
@@ -406,6 +437,7 @@ function decode(type, input) {
         case "rot47": return rot47(input);
         case "atbash": return atbash(input);
         case "morse": return morsed(input);
+        case "wingdings": return wingdingsDecode(input);
         default: throw new Error("该编码方式不支持解码");
     }
 }
@@ -429,6 +461,7 @@ const encodeCat = () => ({
         [{ text: "Unicode / UTF", callback_data: "cat:unicode" }],
         [{ text: "Web / 转义", callback_data: "cat:web" }],
         [{ text: "字符变换", callback_data: "cat:char" }],
+        [{ text: "字体转换", callback_data: "cat:font" }],
         [{ text: "返回", callback_data: "back" }]
     ]
 });
@@ -467,6 +500,13 @@ const catKb = (cat) => {
     return { inline_keyboard: map[cat] || map.base };
 };
 
+const fontKb = () => ({
+    inline_keyboard: [
+        [{ text: "Wingdings", callback_data: "enc:wingdings" }],
+        [{ text: "返回", callback_data: "menu:encode" }]
+    ]
+});
+
 const decodeKb = () => ({
     inline_keyboard: [
         [{ text: "Hex", callback_data: "dec:hex" }, { text: "二进制", callback_data: "dec:binary" }],
@@ -479,6 +519,7 @@ const decodeKb = () => ({
         [{ text: "JSON解析", callback_data: "dec:json" }, { text: "摩斯解码", callback_data: "dec:morse" }],
         [{ text: "ROT13", callback_data: "dec:rot13" }, { text: "ROT47", callback_data: "dec:rot47" }],
         [{ text: "Atbash", callback_data: "dec:atbash" }],
+        [{ text: "Wingdings", callback_data: "dec:wingdings" }],
         [{ text: "返回", callback_data: "back" }]
     ]
 });
@@ -506,7 +547,7 @@ async function handleMsg(msg, env) {
     }
     if (text === "/help" || text.toLowerCase() === "help") { await sendHelp(chatId, env); return; }
     if (text === "/start" || text === "/start@") {
-        await send(chatId, "发送任意文本，然后选择编码方式。\n\n支持: Hex、Base64、UTF-8、URL编码、ROT13 等", env, startKb());
+        await send(chatId, "发送任意文本，然后选择编码方式。\n\n支持: Hex、Base64、UTF-8、URL编码、ROT13、Wingdings 等", env, startKb());
         return;
     }
     if (text.startsWith("/")) { await send(chatId, "未知命令。发送 /help 查看帮助。", env); return; }
@@ -559,6 +600,10 @@ async function handleCb(query, env) {
         }
         case "menu:decode": {
             await edit(chatId, msgId, "原文:\n" + original + "\n\n选择解码方式:", env, decodeKb());
+            return;
+        }
+        case "cat:font": {
+            await edit(chatId, msgId, "原文:\n" + original + "\n\n选择字体转换:", env, fontKb());
             return;
         }
     }
